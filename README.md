@@ -1,10 +1,12 @@
-                                                                    Audit Test Automation and Data Analysis
+<h1>Audit Test Automation and Data Analysis</h1>
 
-Welcome to the Audit Test Automation and Data Analysis repository!
+> Status: Developing ⚠️
+
+### Welcome to the Audit Test Automation and Data Analysis repository!
 This project aims to revolutionize the way we conduct internal audits by integrating automation and advanced data analysis to increase the efficiency,
 accuracy, and scope of our audit processes.
 
-Overview
+## Overview
 Internal auditing is essential for ensuring compliance and operational efficiency within companies. However, manual audits can be time-consuming and prone to human errors.
 This project leverages modern automation tools and data analysis techniques to:
 
@@ -12,13 +14,19 @@ This project leverages modern automation tools and data analysis techniques to:
 - Advanced Data Analysis: Apply statistics and machine learning algorithms to identify patterns, anomalies, and risk areas that may not be evident in a manual analysis.
 - Reports and Dashboards: Generate detailed reports and interactive dashboards to visualize and interpret audit and analysis results.
   
-Features:
+### Features:
 - Automated Test Execution: Configurable scripts to execute audit tests in various areas, such as compliance, operations, and finance;
 - BigQuery Integration: Efficient queries on large datasets, enabling detailed analysis of transactions and inventory positions;
 - Anomaly Detection: Use algorithms to identify deviations and potential irregularities in large datasets;
 - Data Visualization: Create interactive dashboards to facilitate the interpretation of results and support decision-making.
   
-Benefits:
+### Benefits:
 - Efficiency: Significantly reduce the time required to perform audits, allowing the audit team to focus on more strategic areas;
 - Accuracy: Reduce human errors and increase consistency in audit tests;
 - Deep Insights: Identify patterns and anomalies that may be overlooked in manual analyses.
+
+### Tools:
+- Python language: Automation of tasks and statistical analysis of diverse data sources;
+- SQL and BigQuery: carrying out queries in Databases;
+- Business Intelligence: Data visualization and analysis to assist in decision making;
+- Office package: Data manipulation and presentations
