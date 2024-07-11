@@ -1,0 +1,14 @@
+SELECT 
+	POS.MANDT, 
+	POS.WERKS AS 'CENTRO',
+	POS.ERSDA AS 'DATA_CRIAÇAO',
+	POS.LGORT AS 'DEPOSITO', 
+	RIGHT(POS.MATNR, 6) AS 'MATERIAL', 
+	POS.LABST AS 'QTD',
+	POS.SPEME AS 'BLOQUEADO'
+FROM 
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.mard` AS POS
+WHERE
+	POS.MANDT = '300' AND 
+	POS.LGORT = 'DLIC' AND
+	POS.LABST <> '0' 
