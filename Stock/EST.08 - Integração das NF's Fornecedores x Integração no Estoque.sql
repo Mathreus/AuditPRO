@@ -1,0 +1,30 @@
+SELECT 
+	LIN.BWKEY AS 'CENTRO',
+	DOC.DOCDAT AS 'DATA',
+	DOC.DOCTYP AS 'TP_DOC',
+	DOC.DIRECT AS 'DIRECAO', 
+	DOC.NFENUM AS 'NUMERO NF',
+	DOC.PARID AS 'FORNECEDOR', 
+	LIN.MATNR AS 'COD PRODUTO', 
+	LIN.MAKTX AS 'PRODUTOS',
+	LIN.MENGE AS 'QTD_NF',
+	MSG.MENGE AS 'QTD_ESTQ', 
+	(MSG.MENGE - LIN.MENGE)'DIF',
+	LIN.NETWR AS 'VALOR LÍQUIDO'
+FROM 
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.j_1bnfdoc AS DOC
+INNER JOIN 
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.j_1bnflin AS LIN ON 
+	DOC.DOCNUM = LIN.DOCNUM
+LEFT JOIN 
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.nsdm_v_mseg` AS MSG ON 
+	LEFT (MSG.XBLNR_MKPF, 9) = DOC.NFENUM AND 
+	MSG.MJAHR = LIN.BWKEY AND 
+	MSG.MATNR = LIN.MATNR AND 
+	DOC.PARID = MSG.LIFNR
+WHERE 
+	DOC.DOCDAT BETWEEN '2024-06-01' AND '2024-06-30' AND
+	DOC.DOCTYP = '1' AND 
+	DOC.DIRECT = '1' AND 
+	LIN.MATNR < '000000000000200000' AND
+	(MSG.MENGE - LIN.MENGE) <> 0
