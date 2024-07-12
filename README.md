@@ -1,6 +1,6 @@
 <h1>Audit Test Automation and Data Analysis</h1>
 
-> Status: Developing ⚠️
+> Status: Constant development ⚠️
 
 ### Welcome to the Audit Test Automation and Data Analysis repository!
 This project aims to revolutionize the way we conduct internal audits by integrating automation and advanced data analysis to increase the efficiency,
