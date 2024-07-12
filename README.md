@@ -19,7 +19,7 @@ This project leverages modern automation tools and data analysis techniques to:
 - BigQuery Integration: Efficient queries on large datasets, enabling detailed analysis of transactions and inventory positions;
 - Anomaly Detection: Use algorithms to identify deviations and potential irregularities in large datasets;
 - Data Visualization: Create interactive dashboards to facilitate the interpretation of results and support decision-making.
-  
+- SAP System: The analyses are conducted based on the SAP System.  
 ### Benefits:
 - Efficiency: Significantly reduce the time required to perform audits, allowing the audit team to focus on more strategic areas;
 - Accuracy: Reduce human errors and increase consistency in audit tests;
@@ -29,4 +29,5 @@ This project leverages modern automation tools and data analysis techniques to:
 - Python language: Automation of tasks and statistical analysis of diverse data sources;
 - SQL and BigQuery: carrying out queries in Databases;
 - Business Intelligence: Data visualization and analysis to assist in decision making;
-- Office package: Data manipulation and presentations
+- Office package: Data manipulation and presentations;
+- SAP System: Use of SAP S/4HANA and SAP GUI for studying tables and validating data input into the system
