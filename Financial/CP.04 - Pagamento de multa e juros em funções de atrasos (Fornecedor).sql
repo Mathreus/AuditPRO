@@ -1,17 +1,21 @@
 SELECT DISTINCT 
-TOP 10 
-	SD.BUKRS AS 'EMPRESA',
-	SD.KUNNR AS 'COD_CLIENTE',
-	SD.ZLSCH AS 'FRM_PGTO',
-	SD.BLART AS 'TP_DOC',
-	SD.BUDAT AS 'DT_LÇTO',
-	SD.ZFBDT AS 'DT_PRAZO',
-	DATEDIFF(DAY,(SD.BUDAT),  SD.ZFBDT) AS 'DIAS_DIF', 
-	SD.DMBTR AS 'VLR_NF'
+  B.BUKRS as Empresa,
+  B.AUGCP as Data_Compensacao, 
+  B.H_BLART as Tipo_Lancamento,
+  CASE
+    WHEN B.SHKZG = 'S' THEN 'Débito'
+    ELSE 'Crédito'
+  END Deb_Cred,
+  B.AUGBL as Documento_Compensacao,
+  B.NEBTR as Pgto_Total,
+  B.DMBTR as Montante,
+  B.NEBTR - B.DMBTR AS Juros
 FROM 
-	`production-servers-magnumtires.prdmgm_sap_cdc_processed.BSAD` AS SD
-WHERE
-	SD.BUKRS = '2000' AND
-	DATEDIFF(DAY,(SD.BUDAT),  SD.ZFBDT) > 0 AND 
-	SD.ZLSCH = 'E' AND 
-	SD.BLART = 'DZ'
+  `production-servers-magnumtires.prdmgm_sap_cdc_processed.bseg` as B
+WHERE 
+  B.AUGCP = B.AUGDT 
+  AND B.BSCHL = '25'
+  AND B.SHKZG = 'S' 
+  AND B.H_BLART = 'KZ' 
+  AND B.NEBTR > B.DMBTR
+  AND B.NEBTR - B.DMBTR > 1
