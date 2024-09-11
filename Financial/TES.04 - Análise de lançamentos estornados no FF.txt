@@ -1,0 +1,17 @@
+SELECT 
+  COMP_CODE AS Empresa,
+  CAJO_NUMBER AS Centro,
+  POSTING_DATE AS Data_Lcto,
+  transact_type as Transacao,
+  p_payments as Pagamento,
+  position_text as Texto
+FROM 
+  `production-servers-magnumtires.prdmgm_sap_cdc_processed.tcj_positions` as TES
+WHERE
+  COMP_CODE IN ('1000', '2000', '7000')
+  AND CAJO_NUMBER IN ('0001', '1004', '2009')
+  AND POSTING_DATE BETWEEN '2024-06-01' AND '2024-09-11'
+  AND position_text LIKE '%estorno%'
+ORDER BY
+  COMP_CODE,
+  CAJO_NUMBER
