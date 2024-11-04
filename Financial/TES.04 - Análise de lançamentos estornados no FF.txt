@@ -1,17 +1,20 @@
-SELECT 
-  COMP_CODE AS Empresa,
-  CAJO_NUMBER AS Centro,
-  POSTING_DATE AS Data_Lcto,
-  transact_type as Transacao,
-  p_payments as Pagamento,
-  position_text as Texto
+SELECT
+  C.cajo_number as Centro,
+  C.POSTING_DATE AS Data_Lcto,
+  CASE
+    WHEN C.TRANSACT_TYPE = 'C' THEN 'Entrada Conta Bancária'
+    WHEN C.TRANSACT_TYPE = 'B' THEN 'Saída Conta Bancária'
+    WHEN C.TRANSACT_TYPE = 'R' THEN 'Receitas'
+    WHEN C.TRANSACT_TYPE = 'E' THEN 'Despesas'
+    WHEN C.TRANSACT_TYPE = 'D' THEN 'Lçto Cliente'
+    WHEN C.TRANSACT_TYPE = 'K' THEN 'Lçto Fornecedor'
+    ELSE 'Não Identificado'
+  END Categoria,
+  C.POSTING_NUMBER AS Documento,
+  C.P_PAYMENTS AS Montante,
+  C.POSITION_TEXT AS Texto
 FROM 
-  `production-servers-magnumtires.prdmgm_sap_cdc_processed.tcj_positions` as TES
+  `production-servers-magnumtires.prdmgm_sap_cdc_processed.tcj_positions` AS C
 WHERE
-  COMP_CODE IN ('1000', '2000', '7000')
-  AND CAJO_NUMBER IN ('0001', '1004', '2009')
-  AND POSTING_DATE BETWEEN '2024-06-01' AND '2024-09-11'
-  AND position_text LIKE '%estorno%'
-ORDER BY
-  COMP_CODE,
-  CAJO_NUMBER
+  C.CAJO_NUMBER = '2015'
+  AND C.POSTING_DATE BETWEEN '2024-07-01' AND '2024-11-03'
