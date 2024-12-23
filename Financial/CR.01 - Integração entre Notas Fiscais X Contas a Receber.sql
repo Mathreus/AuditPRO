@@ -1,23 +1,40 @@
-SELECT DISTINCT
-	DOC.BUKRS AS 'EMPRESA',
-	DOC.BRANCH AS 'CENTRO',
-	DOC.DOCNUM AS 'NUM_DOCUMENTO', 
-	DOC.DOCDAT AS 'DATA_DOCUMENTO', 
-	DOC.PARID AS 'CLIENTE', 
-	DOC.FORM AS 'FORMA_DOCUMENTO',
-	DOC.NFENUM AS 'NUM_NF',
-	DOC.ZTERM AS 'CONDICAO_PGTO', 
-	DOC.NFTOT AS 'VLR_NF', 
-	SAD.DMBTR, SID.DMBTR, 
-	SUM(SAD.DMBTR + SID.DMBTR) AS 'VLR_TOTAL',
-	SUM(SAD.DMBTR + SID.DMBTR) - DOC.NFTOT AS 'DIF_VLR'
+SELECT
+DISTINCT
+  DOC.BUKRS as EMPRESA, 
+  DOC.BRANCH as CENTRO, 
+  DOC.DOCNUM as NUM_DOCUMENTO, 
+  DOC.DOCDAT as DATA_DOCUMENTO, 
+  DOC.PARID as CLIENTE, 
+  DOC.NFENUM as NUM_NF,
+  DOC.NATOP as NAT_OP,
+  (FAT.NETWR + FAT.MWSBK) as VLR_FAT, 
+  SUM(FIN.DMBTR) as VLR_FIN
 FROM 
-	 `production-servers-magnumtires.prdmgm_sap_cdc_processed.j_1bnfdoc AS DOC
-INNER JOIN 
-	 `production-servers-magnumtires.prdmgm_sap_cdc_processed.bsad` AS SAD ON 
-	DOC.ZTERM = SAD.ZTERM 
+  production-servers-magnumtires.prdmgm_sap_cdc_processed.j_1bnfdoc as DOC
+INNER JOIN
+  production-servers-magnumtires.prdmgm_sap_cdc_processed.vbrk as FAT 
+  ON DOC.NFENUM = LEFT(FAT.XBLNR,9) AND 
+  FAT.KUNAG = DOC.PARID AND 
+  FAT.BUPLA = DOC.BRANCH AND 
+  FAT.VBTYP = 'M'
 LEFT JOIN 
-	 `production-servers-magnumtires.prdmgm_sap_cdc_processed.bsid` AS SID ON 
-	SAD.XBLNR = SID.XBLNR
-WHERE
-	DOC.FORM = 'NF55'
+  production-servers-magnumtires.prdmgm_sap_cdc_processed.bseg as FIN  
+  ON FIN.VBELN = FAT.VBELN AND 
+  FIN.SHKZG = 'S' AND 
+  FIN.H_BLART = 'RV'
+WHERE 
+  DOC.DIRECT = '2' AND
+  DOC.DOCTYP = '1' AND 
+  DOC.NFTYPE = 'YC' AND
+  DOC.CANCEL <> 'X' AND
+  DOC.DOCDAT BETWEEN '2024-12-01' AND '2024-12-01'
+GROUP BY 
+  DOC.BUKRS, 
+  DOC.BRANCH, 
+  DOC.DOCNUM, 
+  DOC.DOCDAT, 
+  DOC.PARID, 
+  DOC.NFENUM, 
+  FAT.NETWR, 
+  FAT.MWSBK,
+  DOC.NATOP
