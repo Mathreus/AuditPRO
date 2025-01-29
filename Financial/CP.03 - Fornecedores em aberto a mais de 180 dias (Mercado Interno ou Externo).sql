@@ -1,31 +1,27 @@
 SELECT DISTINCT 
-    AF.BUKRS AS EMPRESA,
-    F.LAND1 AS PAIS,
-    AF.LIFNR AS COD_FORNECEDOR,
-    F.NAME1 AS NOME_FORNECEDOR,
-    AF.ZFBDT AS DATA_LCTO,
-    AF.AUGDT AS DATA_COMPENSACAO,
-    FORMAT_DATE('%d/%m/%Y', DATE_ADD(AF.ZFBDT, INTERVAL CAST(AF.ZBD1T AS INT64) DAY)) AS DT_VENCIMENTO,
-    FORMAT_DATE('%d/%m/%Y', CURRENT_DATE()) AS DT_HOJE,
-    AF.SHKZG AS D_C, 
-    AF.BLART AS TIPO_LCTO, 
-    AF.BELNR AS LCTO_CONTABIL,
-    AF.SAKNR AS CTA_RAZAO,
-    C.TXT20 AS Descricao_Conta_Razao,
-    AF.DMBTR AS MONTANTE 
+    B.BUKRS as Centro,
+    B.LIFNR as ID_Fornecedor, 
+    F.NAME1 as Fornecedor, 
+    B.BELNR as Lcto_ctb,
+    B.H_BUDAT as DT_Lancamento,
+    FORMAT_DATE('%d/%m/%Y', DATE_ADD(B.ZFBDT, INTERVAL CAST(B.ZBD1T AS INT64) DAY)) AS Data_Vencimento,
+    FORMAT_DATE('%d/%m/%Y', CURRENT_DATE()) AS Data_Hoje,
+    B.AUGCP as Data_Compensacao,   
+    CASE
+        WHEN B.SHKZG = 'S' THEN 'Débito'
+        WHEN B.SHKZG = 'H' THEN 'Crédito'
+        ELSE 'Não identificado'
+    END Debito_Credito, 
+    B.DMBTR as Montante,
+    B.SGTXT as Texto
 FROM 
-    `production-servers-magnumtires.prdmgm_sap_cdc_processed.bsik` AS AF
+    `production-servers-magnumtires.prdmgm_sap_cdc_processed.bseg` as B
 INNER JOIN 
-    `production-servers-magnumtires.prdmgm_sap_cdc_processed.lfa1` AS F 
-    ON AF.MANDT = F.MANDT 
-    AND AF.LIFNR = F.LIFNR
-INNER JOIN
-  `production-servers-magnumtires.prdmgm_sap_cdc_processed.skat` AS C ON
-    AF.HKONT = C.SAKNR
+    `production-servers-magnumtires.prdmgm_sap_cdc_processed.lfa1` as F ON
+    B.MANDT = F.MANDT 
+    AND B.LIFNR = F.LIFNR
 WHERE 
-    AF.MANDT = '300' 
-    AND F.LAND1 = 'BR' 
-    AND AF.LIFNR > '1000000000'
---	AND AF.LIFNR = '1000005633' 
-	AND AF.hkont = '1010301001'
-    AND DATE_DIFF(CURRENT_DATE(), DATE_ADD(AF.ZFBDT, INTERVAL CAST(AF.ZBD1T AS INT64) DAY), DAY) > 30
+  B.LIFNR > '1000000000'  
+  AND DATE_DIFF(CURRENT_DATE(), B.H_BUDAT, DAY) > 30 
+  AND B.AUGBL = ''  
+  AND B.HKONT = '1010301001'
