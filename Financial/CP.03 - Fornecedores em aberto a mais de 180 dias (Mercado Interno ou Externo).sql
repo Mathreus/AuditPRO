@@ -1,27 +1,37 @@
-SELECT DISTINCT 
-    B.BUKRS as Centro,
-    B.LIFNR as ID_Fornecedor, 
-    F.NAME1 as Fornecedor, 
-    B.BELNR as Lcto_ctb,
-    B.H_BUDAT as DT_Lancamento,
-    FORMAT_DATE('%d/%m/%Y', DATE_ADD(B.ZFBDT, INTERVAL CAST(B.ZBD1T AS INT64) DAY)) AS Data_Vencimento,
-    FORMAT_DATE('%d/%m/%Y', CURRENT_DATE()) AS Data_Hoje,
-    B.AUGCP as Data_Compensacao,   
-    CASE
-        WHEN B.SHKZG = 'S' THEN 'Débito'
-        WHEN B.SHKZG = 'H' THEN 'Crédito'
-        ELSE 'Não identificado'
-    END Debito_Credito, 
-    B.DMBTR as Montante,
-    B.SGTXT as Texto
+SELECT DISTINCT
+	SD.BUKRS as Empresa,
+	SD.KUNNR as ID_Externo,
+	CAD.NAME1 as Cliente,
+	SD.BUDAT as Data_Lcto,
+	SD.AUGDT as Data_Compensacao,
+	SD.AUGBL as Doc_Compensacao,
+	SD.BLART as Tipo_Documento,
+	CASE
+		WHEN SD.SHKZG = 'S' THEN 'Débito'
+		WHEN SD.SHKZG = 'H' THEN 'Crédito'
+		ELSE 'Não Identificado'
+	END Debito_Credito,
+	SD.SAKNR as Conta_Contabil, 
+	FAT.USNAM as Usuario,
+	SD.XBLNR as Referencia,
+	SD.BUZEI as Parcela,
+	SD.DMBTR as Montante
 FROM 
-    `production-servers-magnumtires.prdmgm_sap_cdc_processed.bseg` as B
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.bsad` as SD
 INNER JOIN 
-    `production-servers-magnumtires.prdmgm_sap_cdc_processed.lfa1` as F ON
-    B.MANDT = F.MANDT 
-    AND B.LIFNR = F.LIFNR
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.bkpf` as FAT ON
+	SD.BUKRS = FAT.BUKRS 
+	AND SD.GJAHR = FAT.GJAHR 
+	AND SD.BELNR = FAT.BELNR
+INNER JOIN 
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.kna1` as CAD 
+	ON SD.MANDT = CAD.MANDT 
+	AND SD.KUNNR = CAD.KUNNR 
 WHERE 
-  B.LIFNR > '1000000000'  
-  AND DATE_DIFF(CURRENT_DATE(), B.H_BUDAT, DAY) > 30 
-  AND B.AUGBL = ''  
-  AND B.HKONT = '1010301001'
+	SD.KUNNR > '1000000000'  
+	AND SD.AUGDT BETWEEN '2024-12-01' AND '2025-01-03' 
+--	AND SD.AUGDT = '2025-01-02'
+	AND SD.BLART = 'ES' 
+	AND FAT.USNAM <> 'JOB_USER'
+ORDER BY
+	CAD.NAME1
