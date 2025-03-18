@@ -3,8 +3,9 @@ SELECT DISTINCT
   ped.auart AS Documentos_Vendas, 
   CASE
     WHEN ped.spart = '01' THEN 'Consumo'
-    ELSE 'Revenda'
-  END SetorAtividade,
+    WHEN ped.spart = '02' THEN 'Revenda' 
+    ELSE 'Não identificado'
+  END Canal,
   ped.LAST_CHANGED_BY_USER AS Usuario,
   ped.kunnr AS ID_Externo, 
   cli.name1 AS Cliente,
@@ -12,7 +13,7 @@ SELECT DISTINCT
   rem.erdat AS DataRemessa,
   RIGHT(ped.vbeln, 7) AS Pedido, 
   REM.vbeln AS Remessa,
-  RIGHT(item.matnr, 6) AS CodigoMaterial, 
+  RIGHT(item.matnr, 6) AS Codigo_Material, 
   item.arktx AS Material,
   item.kwmeng AS QTD_Ordem, 
   item.netwr AS Valor_Pedido,
@@ -47,11 +48,14 @@ INNER JOIN
 	ped.mandt = relv.client and
 	relv.idnumber = item.perve_ana
 INNER JOIN
-`production-servers-magnumtires.prdmgm_sap_cdc_processed.but000` as vend on
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.but000` as vend on
 	ped.mandt = vend.client and
 	relv.partner = vend.partner
 WHERE
-  fa.vbeln is null AND
-  ped.abstk = 'A' AND
-  ped.auart in ( 'OR1','ZCAS','ZPDV') AND
-  DATE_DIFF(CURRENT_DATE(), REM.ERDAT, DAY) > 3
+--  item.werks IN ('2007', '2011', '2022', '2024', '2802', '2803')
+  ped.auart <> 'ZCAS'
+  AND fa.vbeln is null 
+  AND ped.abstk = 'A' 
+  AND ped.auart in ( 'OR1','ZCAS','ZPDV') 
+  AND ped.erdat > '2020-01-01'
+  AND DATE_DIFF(CURRENT_DATE(), REM.ERDAT, DAY) > 3
