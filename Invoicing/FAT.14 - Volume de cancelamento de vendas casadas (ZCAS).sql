@@ -58,3 +58,4 @@ WHERE
   AND NF.PARID > '1000000000' 
   AND PED.ABSTK IN ('A', 'C') 
   AND NF.CANCEL = 'X' 
+--  AND NF.NATOP LIKE '%Vnd.mer.adq%'
