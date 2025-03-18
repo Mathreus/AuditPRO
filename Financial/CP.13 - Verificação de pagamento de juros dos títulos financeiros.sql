@@ -32,9 +32,9 @@ SELECT
     t.GJAHR AS Ano,
     t.ID_Fornecedor,  
     t.BELNR AS Documento_Contabil,
-    t.VALOR_TITULO,
-    COALESCE(j.VALOR_JUROS, 0) AS VALOR_JUROS,
-    (t.VALOR_TITULO + COALESCE(j.VALOR_JUROS, 0)) AS VALOR_TOTAL_COM_JUROS,
+    t.Valor_Titulo,
+    COALESCE(j.VALOR_JUROS, 0) AS Juros_Mora,
+    (t.VALOR_TITULO - COALESCE(j.VALOR_JUROS, 0)) AS Valor_Liquido_Original,
     t.TEXTO
 FROM titulos t
 LEFT JOIN juros j
@@ -43,5 +43,6 @@ LEFT JOIN juros j
     AND t.GJAHR = j.GJAHR
 WHERE 
     COALESCE(j.VALOR_JUROS, 0) <> 0
+    AND t.BELNR NOT LIKE '%9020%'
 ORDER BY
     COALESCE(j.VALOR_JUROS, 0) DESC;
