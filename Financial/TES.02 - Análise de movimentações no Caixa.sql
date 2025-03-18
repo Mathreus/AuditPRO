@@ -16,5 +16,8 @@ SELECT
 FROM 
   `production-servers-magnumtires.prdmgm_sap_cdc_processed.tcj_positions` AS C
 WHERE
-  C.CAJO_NUMBER = '2015'
-  AND C.POSTING_DATE BETWEEN '2024-07-01' AND '2024-11-03'
+  C.CAJO_NUMBER IN ('1006', '1007')
+  AND C.POSTING_DATE BETWEEN '2025-01-01' AND '2025-03-12'
+  AND C.POSITION_TEXT NOT LIKE '%estorno%'
+ORDER BY
+  C.cajo_number, C.POSTING_DATE
