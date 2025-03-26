@@ -25,12 +25,12 @@ WHERE
   PD.ABSTK = 'A' AND 
   PD.LIFSK = '' AND 
   PD.AUART IN( 'OR1','ZCAS','ZPDV') AND
-  PD.ERDAT > '2023-01-01' 
+  PD.ERDAT > '2023-01-01' -- DATA ACUMULATIVA, NÃO PRECISA ALTERAR
 ORDER BY 
   PD.ERDAT
 
 # Consultar no banco de dados os pedidos que predem o estoque - Financeiro.
-/*
+
 SELECT 
   PD.VBELN as DOC_VENDA,  
   PD.ERDAT as DT_CRIACAO, 
@@ -58,5 +58,4 @@ WHERE
   PD.LIFSK = '10' AND 
   ITEM.ABGRU = '' AND 
   PD.AUART IN( 'OR1','ZCAS','ZPDV') AND
-  PD.ERDAT > '2023-01-01'
-*/
+  PD.ERDAT > '2023-01-01' -- DATA ACUMULATIVA, NÃO PRECISA ALTERAR
