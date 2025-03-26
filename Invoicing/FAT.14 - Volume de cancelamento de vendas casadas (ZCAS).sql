@@ -52,7 +52,7 @@ INNER JOIN
 	ped.mandt = vend.client and
 	relv.partner = vend.partner
 WHERE
-  NF.PSTDAT BETWEEN '2024-01-01' AND '2024-12-31' 
+  NF.PSTDAT BETWEEN '2024-03-01' AND '2024-03-31' 
   AND PED.AUART = 'ZCAS'
   AND NF.DIRECT = '2' 
   AND NF.PARID > '1000000000' 
