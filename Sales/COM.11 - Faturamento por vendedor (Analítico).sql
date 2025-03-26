@@ -53,7 +53,7 @@ inner join
   relv.partner = vend.partner
 WHERE
   nf.mandt = '300' AND
-  nf.pstdat between '2022-05-01' and '2024-06-30' AND
+  nf.pstdat between '2025-03-01' and '2025-03-31' AND
   nf.parid > '1000000000' and
   nf.nfenum <> 'NULL' and
   nf.cancel <> 'X' AND  
