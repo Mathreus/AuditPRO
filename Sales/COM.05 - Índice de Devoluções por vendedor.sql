@@ -37,7 +37,7 @@ inner join
 	ped.mandt = vend.client and
 	relv.partner = vend.partner
 where
-	nf.pstdat between '2024-06-01' and '2024-06-30' and
+	nf.pstdat between '2025-03-01' and '2024-05-31' and
   nf.parid > '1000000000' and
 	ped.vbeln like '%006%' and
 	nf.cancel <> 'X' and 
