@@ -51,7 +51,7 @@ WITH base_data AS (
     relv.partner = vend.partner
   WHERE
     nf.mandt = '300' AND
-    nf.pstdat BETWEEN '2024-06-01' AND '2024-06-30' AND
+    nf.pstdat BETWEEN '2025-03-01' AND '2025-03-31' AND
     nf.parid > '1000000000' AND
     ped.abstk = 'A' AND
     nf.nfenum IS NOT NULL AND
