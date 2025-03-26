@@ -48,7 +48,7 @@ INNER JOIN
   ped.mandt = vend.client AND
   relv.partner = vend.partner
 WHERE  
-  ped.erdat BETWEEN '2024-06-01' AND '2024-06-30' AND 
+  ped.erdat BETWEEN '2025-03-01' AND '2025-03-31' AND 
   ped.auart IN ('OR1', 'ZPDV', 'ZCAS') AND
   ped.abstk = 'C'
 ORDER BY 
