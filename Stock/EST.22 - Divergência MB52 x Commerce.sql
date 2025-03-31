@@ -1,5 +1,6 @@
 SELECT DISTINCT
   ATP.DEPOSITO AS Centro,
+  CMC.LGORT AS Deposito,
   ATP.SKU AS Material,
   TEX.MAKTX AS Texto_Breve_Material,
   ATP.QTD_ESTOQUE AS QTD_Estoque,
@@ -22,4 +23,7 @@ INNER JOIN
   `production-servers-magnumtires.prdmgm_sap_cdc_processed.makt` AS TEX 
   ON POS.MATNR = TEX.MATNR 
 WHERE 
-  CMC.AVAIL - QTD_DISPONIVEL_ATP <> 0
+  ATP.DEPOSITO = '1004'
+  AND ATP.SKU = '104465'
+  AND CMC.AVAIL - QTD_DISPONIVEL_ATP <> 0
+  AND CMC.LGORT = 'DREV'
