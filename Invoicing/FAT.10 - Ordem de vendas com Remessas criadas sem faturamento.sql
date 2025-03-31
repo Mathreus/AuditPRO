@@ -56,6 +56,6 @@ WHERE
   ped.auart <> 'ZCAS'
   AND fa.vbeln is null 
   AND ped.abstk = 'A' 
-  AND ped.auart in ( 'OR1','ZCAS','ZPDV') 
+  AND ped.auart in ( 'OR1','ZPDV') 
   AND ped.erdat > '2020-01-01' -- TESTE ACUMULATIVO, NÃO PRECISA FILTRAR DATA ESPECÍFICA
   AND DATE_DIFF(CURRENT_DATE(), REM.ERDAT, DAY) > 3
