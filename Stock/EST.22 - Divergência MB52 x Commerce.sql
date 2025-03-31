@@ -23,7 +23,5 @@ INNER JOIN
   `production-servers-magnumtires.prdmgm_sap_cdc_processed.makt` AS TEX 
   ON POS.MATNR = TEX.MATNR 
 WHERE 
-  ATP.DEPOSITO = '1004'
-  AND ATP.SKU = '104465'
-  AND CMC.AVAIL - QTD_DISPONIVEL_ATP <> 0
+  CMC.AVAIL - QTD_DISPONIVEL_ATP <> 0
   AND CMC.LGORT = 'DREV'
