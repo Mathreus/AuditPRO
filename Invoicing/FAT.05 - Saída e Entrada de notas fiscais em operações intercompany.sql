@@ -1,93 +1,68 @@
--- NOTA FISCAL DE SAÍDA DA IMPORTADORA:
-
-SELECT DISTINCT
-	CONCAT(LEFT(NF.BUKRS, 2), RIGHT(NF.BRANCH, 2)) as CENTRO_IMP,
-	NF.PSTDAT as DATA_LCTO_IMP,
-  NF.CRETIM AS HORARIO,
-	CASE
-		WHEN NF.DIRECT = '1' THEN 'Entrada'
-		WHEN NF.DIRECT = '2' THEN 'Saída'
-		ELSE 'N/A'
-	END MOVIMENTO_IMP,
-  CASE
-    WHEN NF.PARTYP = 'B' THEN 'Local de Negocios'
-    WHEN NF.PARTYP = 'C' THEN 'Cliente'
-    WHEN NF.PARTYP = 'V' THEN 'Fornecedor'
-    ELSE 'Não Identificado'
-  END PARCEIRO,
-	NF.PARID as ID_EXTERNO_IMP,
-	NF.NAME1 as CLIENTE_IMP,
-	NF.CANCEL as ESTORNADO_IMP,
-	NF.NFENUM as NUM_NF_IMP,
-	NF.NFTOT as MONTANTE_IMP,
-  NF.NFTYPE AS TIPO_NF,
-  NF.NATOP as _REFERENCIA_IMP
-FROM
-	`production-servers-magnumtires.prdmgm_sap_cdc_processed.j_1bnfdoc` as NF 
-LEFT JOIN
-	`production-servers-magnumtires.prdmgm_sap_cdc_processed.j_1bnfdoc` AS DOC ON 
-	NF.MANDT = DOC.MANDT  
-	AND NF.PSTDAT = DOC.PSTDAT
-	AND NF.DIRECT = DOC.DIRECT 
-	AND NF.PARTYP = DOC.PARTYP 
-	AND NF.PARID = DOC.PARID  
-	AND NF.NAME1 = DOC.NAME1 
-	AND NF.CANCEL = DOC.CANCEL  
-	AND NF.NFENUM = DOC.NFENUM 
-	AND NF.NFTOT = DOC.NFTOT 
-WHERE
-	NF.BUKRS = '1000'
---  AND CONCAT(LEFT(NF.BUKRS, 2), RIGHT(NF.BRANCH, 2)) = '1006'
-	AND NF.PSTDAT BETWEEN '2025-03-01' AND '2025-03-31' 
-	AND NF.DIRECT = '2' 
-	AND NF.PARTYP = 'C' 
-	AND NF.PARID BETWEEN '0000002001' AND '0000002999' 
-	AND NF.CANCEL = '' 
-  AND (NF.NATOP LIKE '%Venda%' OR NF.NATOP LIKE '%Vnd%')
+SELECT 
+  -- Dados da Importadora (Saída)
+  CONCAT(LEFT(imp.BUKRS, 2), RIGHT(imp.BRANCH, 2)) AS CENTRO_IMP,
+  imp.PSTDAT AS DATA_LCTO_IMP,
+  imp.CRETIM AS HORARIO_IMP,
+  'Saída' AS MOVIMENTO_IMP,
+  'Cliente' AS PARCEIRO_IMP,
+  imp.PARID AS ID_EXTERNO_IMP,
+  imp.NAME1 AS CLIENTE_IMP,
+--  imp.CANCEL AS ESTORNADO_IMP,
+--  imp.DOCTYP AS TIPO_DOC_IMP,
+  imp.NFENUM AS NUM_NF_IMP,
+  imp.CRENAM AS USUARIO_IMP,
+  imp.NFTOT AS MONTANTE_IMP,
+--  imp.NFTYPE AS TIPO_NF_IMP,
+--  imp.NATOP AS REFERENCIA_IMP,
   
--- NOTA FISCAL DE ENTRADA DA DISTRIBUIDORA/OUTRAS EMPRESAS:
+  -- Dados da Distribuidora (Entrada)
+  CONCAT(LEFT(dist.BUKRS, 2), RIGHT(dist.BRANCH, 2)) AS CENTRO_DIST,
+  dist.PSTDAT AS DATA_LCTO_DIST,
+  dist.CRETIM AS HORARIO_DIST,
+  'Entrada' AS MOVIMENTO_DIST,
+  'Fornecedor' AS PARCEIRO_DIST,
+  dist.PARID AS ID_EXTERNO_DIST,
+  dist.NAME1 AS FORNECEDOR_DIST,
+--  dist.CANCEL AS ESTORNADO_DIST,
+  dist.CRENAM AS USUARIO_DIST,
+  dist.NFENUM AS NUM_NF_DIST,
+  dist.NFTOT AS MONTANTE_DIST,
+--  dist.NATOP AS REFERENCIA_DIST,
 
-SELECT DISTINCT
-  CONCAT(LEFT(DOC.BUKRS, 2), RIGHT(DOC.BRANCH, 2)) as CENTRO,
-  DOC.PSTDAT as DATA_LCTO,
-  DOC.CRETIM AS HORARIO,
-  CASE
-    WHEN DOC.DIRECT = '1' THEN 'Entrada'
-    WHEN DOC.DIRECT = '2' THEN 'Saída'
-    ELSE 'Não Identificado'
-  END MOVIMENTO,
-  CASE
-    WHEN NF.PARTYP = 'B' THEN 'Local de Negocios'
-    WHEN NF.PARTYP = 'C' THEN 'Cliente'
-    WHEN NF.PARTYP = 'V' THEN 'Fornecedor'
-    ELSE 'Não Identificado'
-  END PARCEIRO,
-  DOC.PARID as ID_EXTERNO,
-  DOC.NAME1 as FORNECEDOR,
-  DOC.CANCEL as ESTORNADO,
-  DOC.CRENAM AS USUARIO_CRIACAO,
-  DOC.NFENUM as NUM_NF,
-  DOC.NFTOT as MONTANTE,
-  DOC.NATOP as REFERENCIA
+  -- Campos de comparação
+  CASE WHEN dist.NFENUM IS NOT NULL THEN 'OK' ELSE 'PENDENTE' END AS STATUS_RECEBIMENTO,
+  imp.NFTOT - COALESCE(dist.NFTOT, 0) AS DIFERENCA_VALOR
+
 FROM
-  `production-servers-magnumtires.prdmgm_sap_cdc_processed.j_1bnfdoc` as DOC 
+  `production-servers-magnumtires.prdmgm_sap_cdc_processed.j_1bnfdoc` AS imp
 LEFT JOIN
-  `production-servers-magnumtires.prdmgm_sap_cdc_processed.j_1bnfdoc` as NF ON 
-  DOC.MANDT = NF.MANDT  
-  AND DOC.PSTDAT = NF.PSTDAT
-  AND DOC.DIRECT = NF.DIRECT 
-  AND DOC.PARTYP = NF.PARTYP 
-  AND DOC.PARID = NF.PARID  
-  AND DOC.NAME1 = NF.NAME1 
-  AND DOC.CANCEL = NF.CANCEL  
-  AND DOC.NFENUM = NF.NFENUM 
-  AND DOC.NFTOT = NF.NFTOT 
+  `production-servers-magnumtires.prdmgm_sap_cdc_processed.j_1bnfdoc` AS dist
+  ON imp.NFENUM = dist.NFENUM
+  AND imp.PSTDAT = dist.PSTDAT
+  -- Adicione mais condições de relacionamento conforme necessário
+  -- Exemplo: AND imp.SERIES = dist.SERIES
+
 WHERE
-  DOC.BUKRS NOT IN ('1000') 
-  AND DOC.PSTDAT BETWEEN '2025-03-01' AND '2025-03-31' 
-  AND DOC.DIRECT = '1' 
-  AND DOC.PARTYP = 'V' 
-  AND DOC.PARID BETWEEN '0000001001' AND '0000001999' 
-  AND DOC.CANCEL <> 'X'
+  -- Filtros para notas de SAÍDA da Importadora
+  imp.BUKRS = '1000'
+  AND imp.PSTDAT BETWEEN '2025-01-01' AND '2025-01-31'
+  AND imp.DIRECT = '2' -- Saída
+  AND imp.PARTYP = 'C' -- Cliente
+  AND imp.PARID BETWEEN '0000002001' AND '0000002999' -- Faixa de clientes importadora
+  AND imp.doctyp = '1' -- Tipo de documento
+  AND imp.CANCEL = '' -- Não cancelado
+  AND (imp.NATOP LIKE '%Venda%' OR imp.NATOP LIKE '%Vnd%') -- Natureza operação
+
+  -- Filtros para notas de ENTRADA nas Distribuidoras (aplicados apenas quando há match)
+  AND (dist.BUKRS IS NULL OR (
+    dist.BUKRS NOT IN ('1000')
+    AND dist.DIRECT = '1' -- Entrada
+    AND dist.PARTYP = 'V' -- Fornecedor
+    AND dist.PARID BETWEEN '0000001001' AND '0000001999' -- Faixa de fornecedores distribuidora
+    AND dist.CANCEL <> 'X' -- Não cancelado
+  ))
+
 ORDER BY
-  CENTRO;
+  imp.PSTDAT DESC,
+  STATUS_RECEBIMENTO,
+  imp.NFENUM
