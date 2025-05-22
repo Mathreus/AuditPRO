@@ -1,19 +1,19 @@
 SELECT DISTINCT
-	CONCAT(left(nf.bukrs, 2), right(nf.branch, 2)) as Centro,
+	LIN.BWKEY as Centro,
 	NF.PSTDAT as Dt_lan,
-  CASE
-    WHEN ped.spart = '01' THEN 'Consumo'
-    WHEN ped.spart = '02' THEN 'Revenda' 
-    ELSE 'Nada'
-  END Canal,
-  NF.PARID as ID_Externo,
+  	CASE
+    		WHEN ped.spart = '01' THEN 'Consumo'
+    		WHEN ped.spart = '02' THEN 'Revenda' 
+    		ELSE 'Nada'
+  	END Canal,
+  	NF.PARID as ID_Externo,
 	NF.NAME1 as Cliente,
 	PED.VBELN as Pedido,
 	NF.NFENUM as Num_nfe,  
 	NF.NFTOT as Faturamento,
 --  NF.NATOP AS Referencia,
-  PED.VKGRP AS Equipe_Vendas,
-  PED.VKBUR as Escritorio_Vendas,
+  	PED.VKGRP AS Equipe_Vendas,
+  	PED.VKBUR as Escritorio_Vendas,
 	RELV.PARTNER as Cod_orig_vend, 
 	CONCAT(VEND.BU_SORT2,' ',VEND.BU_SORT1) as Vendedor
 FROM
