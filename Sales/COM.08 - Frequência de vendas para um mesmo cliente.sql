@@ -1,7 +1,7 @@
 WITH base_data AS (
   SELECT DISTINCT
     nf.bukrs AS Empresa,
-    CONCAT(LEFT(nf.bukrs, 2), RIGHT(nf.branch, 2)) AS Centro,
+    LIN.BWKEY AS Centro,
     NF.REGIO AS Estado,
     NF.PSTDAT AS Dt_lan,
     NF.PARID AS Id_Externo,
