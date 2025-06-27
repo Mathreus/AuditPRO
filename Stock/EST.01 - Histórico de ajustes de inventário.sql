@@ -1,22 +1,28 @@
-select  
-	est.bukrs as Empresa, 
-	est.werks as Centro, 
-	est.budat_mkpf as Data,
-	est.lgort as Deposito,
-	est.mblnr as Doc_Material,
-	est.shkzg as D_C,
-	est.bwart as Tipo_Movimento,
-	right(est.matnr, 6) as Cod_Material,
-  mat.maktx as Texto_Breve_Material,
-	cast(est.menge as int) as QTD,
-	est.salk3 as Montante, 
-	est.usnam_mkpf as Usuario
-from 
-	`production-servers-magnumtires.prdmgm_sap_cdc_processed.nsdm_v_mseg` as est
-inner join
-	`production-servers-magnumtires.prdmgm_sap_cdc_processed.makt` as mat on
-	est.mandt = mat.mandt and
-	right(est.matnr, 6) = right(mat.matnr, 6)
-where
-	est.budat_mkpf between '2024-01-01' and '2024-06-30' and 
-	est.bwart between '701' and '718'
+SELECT 
+	est.werks AS Centro, 
+	est.budat_mkpf AS Data_Est,
+	est.lgort AS Deposito,
+	est.mblnr AS Doc_Material,
+	CASE
+		WHEN est.shkzg = 'S' THEN 'Entrada'
+		WHEN est.shkzg = 'H' THEN 'Saída'
+		ELSE 'Não Identificado'
+	END Movimento,
+	est.bwart AS Ajuste,
+	est.CPUTM_MKPF AS horario,
+	right(est.matnr, 6) AS Cod_Material,
+  mat.maktx AS Texto_Breve_Material,
+	cast(est.menge AS int) AS QTD,
+	EST.DMBTR AS Valor,
+	est.usnam_mkpf AS Usuario
+FROM
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.nsdm_v_mseg` AS EST
+INNER JOIN
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.makt` AS MAT 
+	ON est.mandt = mat.mandt
+	AND RIGHT(EST.MATNR, 6) = RIGHT(MAT.MATNR, 6)
+WHERE
+	EST.BUDAT_MKPF BETWEEN '2025-06-01' AND '2025-06-30' 
+	AND EST.BWART IN ('309','701', '702', '711', '712')
+ORDER BY
+	EST.WERKS
