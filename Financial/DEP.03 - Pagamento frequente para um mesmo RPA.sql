@@ -11,8 +11,10 @@ SELECT
     WHEN FF.TRANSACT_TYPE = 'K' THEN 'Lançamento Fornecedor'
     ELSE 'Nada'
   END Transacao,
+--  FF.TRANSACT_NUMBER AS Tipo_Transacao,
   FF.P_PAYMENTS AS Montante,
   FF.POSITION_TEXT AS Texto
 FROM `production-servers-magnumtires.prdmgm_sap_cdc_processed.tcj_positions` as FF
 WHERE
-  FF.POSTING_DATE BETWEEN '2024-01-01' AND '2024-11-20'
+  FF.POSTING_DATE BETWEEN '2025-06-01' AND '2025-06-30'
+  AND FF.POSITION_TEXT LIKE '%RPA%'
