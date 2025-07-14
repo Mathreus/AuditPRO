@@ -1,3 +1,4 @@
+-- Teste
 SELECT
   CTB.BUKRS as Empresa,
   CTB.H_BUDAT AS Data_Lcto,
