@@ -7,12 +7,13 @@ SELECT DISTINCT
   NF.NFENUM AS NF_Faturada,
   RIGHT(LIN.MATNR, 6) AS Material_Faturamento,
   LIN.MAKTX AS Descricao_Material_Faturamento,
-  LIN.MENGE AS Quantidade,
+  LIN.MENGE AS Quantidade_NF,
   LIN.NETWR AS Valor_Produto,
   NF.NFTOT AS Valor_Total_NF,
   DEV.NFENUM AS NF_Devolucao,
   RIGHT(DEVLIN.MATNR, 6) AS Material_Devolvido,
   DEVLIN.MAKTX AS Descricao_Material_Devolvido,
+  DEVLIN.MENGE AS QTD_Devolucao,
   DEVLIN.NETWR AS Valor_Produto_Devolucao,
   DEV.NFTOT AS Valor_Devolucao
 FROM    
