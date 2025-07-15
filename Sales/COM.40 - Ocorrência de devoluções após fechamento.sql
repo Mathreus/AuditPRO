@@ -16,6 +16,8 @@ SELECT DISTINCT
   DEVLIN.MENGE AS QTD_Devolucao,
   DEVLIN.NETWR AS Valor_Produto_Devolucao,
   DEV.NFTOT AS Valor_Devolucao,
+  RELV.PARTNER AS Cod_orig_vend, 
+	concat(vend.bu_sort2,' ',vend.bu_sort1) as Vendedor,
   (DEVLIN.MENGE - LIN.MENGE) AS DIF_QTD,
   (DEVLIN.NETWR - LIN.NETWR) AS DIF_VALOR_PRODUTO,
   (DEV.NFTOT - NF.NFTOT) AS DIF_NF
@@ -32,12 +34,26 @@ LEFT JOIN
 LEFT JOIN
   `production-servers-magnumtires.prdmgm_sap_cdc_processed.j_1bnflin` AS DEVLIN
   ON DEV.DOCNUM = DEVLIN.DOCNUM
+LEFT JOIN  
+  `production-servers-magnumtires.prdmgm_sap_cdc_processed.vbap` AS ITEM 
+  ON DEVLIN.mandt = item.mandt 
+  AND DEVLIN.XPED = ITEM.VBELN 
+  AND DEVLIN.MATNR = ITEM.MATNR 
+  AND devlin.itmnum = item.posnr 
+LEFT JOIN
+  `production-servers-magnumtires.prdmgm_sap_cdc_processed.vbak` AS PED
+  ON ITEM.MANDT = PED.MANDT  
+  AND ITEM.VBELN = PED.VBELN 
+LEFT JOIN 
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.but0id` AS RELV 
+	ON ped.mandt = relv.client 
+	AND relv.idnumber = item.perve_ana
+LEFT JOIN
+	`production-servers-magnumtires.prdmgm_sap_cdc_processed.but000` AS VEND 
+	ON ped.mandt = vend.client 
+	AND relv.partner = vend.partner
 WHERE
   NF.PSTDAT BETWEEN '2025-06-23' AND '2025-06-30'
-  AND DEV.PSTDAT BETWEEN '2025-07-01' AND '2025-07-07'
-  AND NF.PARID > '1000000000'
-  AND DEV.NFENUM IS NOT NULL
-  AND DEVLIN.MATNR = LIN.MATNR
   AND DEV.PSTDAT BETWEEN '2025-07-01' AND '2025-07-07'
   AND NF.PARID > '1000000000'
   AND DEV.NFENUM IS NOT NULL
