@@ -4,7 +4,7 @@ import time
 
 # Carrega os dados garantindo que CNPJ seja lido como texto
 df1 = pd.read_excel(
-    r'C:\Users\mathe\OneDrive\Documentos\Scripts\Bases/Clientes.xlsx',
+    r'Caminho/Arquivo.xlsx',
     dtype={'CNPJ': str}  # Força a coluna CNPJ a ser interpretada como texto
 )
 
@@ -51,3 +51,4 @@ for cnpj in cnpjs:
 
 # Opcional: Salva os resultados em um novo arquivo Excel
 resultados.to_excel('Resultados_Situacao_CNPJ.xlsx', index=False)
+
