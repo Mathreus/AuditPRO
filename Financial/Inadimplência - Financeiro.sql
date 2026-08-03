@@ -1,0 +1,710 @@
+-- =====================================================================
+--    ------------------        PARÂMETROS        ------------------
+-- =====================================================================
+
+WITH parametros AS (
+  SELECT
+    data_base,
+    30 AS atraso_minimo,
+    DATE '2010-01-01' AS dt_inicio,
+    ['H','E','I'] AS formas_pagamento
+  FROM UNNEST(
+    GENERATE_DATE_ARRAY(
+      DATE '2024-01-01',
+      DATE '2026-05-01',
+      INTERVAL 1 MONTH
+    )
+  ) AS data_base
+),
+
+-- =====================================================================
+--    ------------------        BASES        ------------------
+-- =====================================================================
+
+base_bseg AS (
+  SELECT
+    TRIM(BELNR) AS BELNR,
+    TRIM(AUGBL) AS AUGBL,
+    TRIM(VBELN) AS VBELN,
+    TRIM(KUNNR) AS KUNNR,
+    TRIM(BUZEI) AS BUZEI,
+    SAFE_CAST(NETDT AS DATE) AS NETDT,
+    SAFE_CAST(AUGDT AS DATE) AS AUGDT,
+    SAFE_CAST(H_BUDAT AS DATE) AS H_BUDAT,
+    EXTRACT(MONTH FROM SAFE_CAST(H_BUDAT AS DATE)) AS H_BUDAT_M,
+    TRIM(H_BLART) AS H_BLART,
+    TRIM(ZLSCH) AS ZLSCH,
+    SAFE_CAST(DMBTR AS NUMERIC) AS DMBTR,
+    TRIM(KOART) AS KOART,
+    TRIM(SHKZG) AS SHKZG,
+    TRIM(PSWSL) AS PSWSL
+  FROM
+    prdmgm_sap_cdc_processed.bseg
+),
+
+base_kna1 AS (
+  SELECT DISTINCT
+    TRIM(KUNNR) AS KUNNR,
+    TRIM(LAND1) AS LAND1,
+    TRIM(REGIO) AS UF_CLIENTE,
+    CASE TRIM(KATR6)
+      WHEN '01' THEN 'Consumo'
+      WHEN '02' THEN 'Revenda'
+      ELSE 'Não classificado'
+    END AS FINALIDADE_COMPRA
+  FROM
+    prdmgm_sap_cdc_processed.kna1
+),
+
+/*
+base_zsdt AS (
+  SELECT DISTINCT
+    TRIM(KUNNR) AS KUNNR,
+    TRIM(CENTRO) AS CENTRO_PRIORIDADE
+  FROM
+    prdmgm_sap_cdc_processed.zsdt_0074
+  WHERE
+    TRIM(PRIORIDADE) = '0'
+    AND TRIM(ATIVO) = 'X'
+    AND NULLIF(TRIM(CENTRO), '') IS NOT NULL
+),
+*/
+
+base_compensacao AS (
+  SELECT
+    BELNR AS LC_COMPENSACAO,
+    ANY_VALUE(H_BLART) AS TIPO_DOC_LC_COMPENSACAO
+  FROM
+    base_bseg
+  WHERE
+    NULLIF(BELNR, '') IS NOT NULL
+  GROUP BY
+    BELNR
+),
+
+itens_base AS (
+  SELECT
+    b.BELNR,
+    b.AUGBL,
+    b.VBELN,
+    b.KUNNR,
+    b.BUZEI,
+    b.NETDT,
+    b.AUGDT,
+    b.H_BUDAT,
+    b.H_BUDAT_M,
+    b.H_BLART,
+    b.ZLSCH,
+    b.DMBTR,
+    b.KOART,
+    b.SHKZG,
+    b.PSWSL,
+
+    k.LAND1,
+    k.UF_CLIENTE,
+    k.FINALIDADE_COMPRA,
+
+    -- Como a base_zsdt está comentada, mantive o campo como nulo
+    -- para não gerar erro no SELECT final.
+    CAST(NULL AS STRING) AS CENTRO_PRIORIDADE,
+
+    c.TIPO_DOC_LC_COMPENSACAO,
+
+    p.data_base,
+    p.atraso_minimo,
+    p.dt_inicio,
+    p.formas_pagamento
+
+  FROM
+    base_bseg b
+
+  LEFT JOIN
+    base_kna1 k
+    ON k.KUNNR = b.KUNNR
+
+  /*
+  LEFT JOIN
+    base_zsdt z
+    ON z.KUNNR = b.KUNNR
+  */
+
+  LEFT JOIN
+    base_compensacao c
+    ON c.LC_COMPENSACAO = b.AUGBL
+
+  CROSS JOIN
+    parametros p
+
+  WHERE
+    b.KOART = 'D'
+    AND SAFE_CAST(b.KUNNR AS INT64) > 1000000000
+    AND k.LAND1 = 'BR'
+    AND b.SHKZG = 'S'
+    AND b.PSWSL = 'BRL'
+    AND COALESCE(b.ZLSCH, '') IN UNNEST(p.formas_pagamento)
+),
+
+-- =====================================================================
+--    ------------------        CLASSIFICAÇÃO        ------------------
+-- =====================================================================
+
+resultado_final AS (
+
+  -- 1) VENDAS ABERTAS
+  SELECT
+    data_base,
+    'VENDAS ABERTAS' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART IN ('RV', 'DR')
+    AND NETDT IS NOT NULL
+    AND NETDT < DATE_SUB(data_base, INTERVAL atraso_minimo DAY)
+    AND H_BUDAT >= dt_inicio
+    AND (
+      NULLIF(AUGBL, '') IS NULL
+      OR AUGDT > data_base
+    )
+
+  UNION ALL
+
+  -- 2) ACORDOS ABERTOS
+  SELECT
+    data_base,
+    'ACORDOS ABERTOS' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART IN ('DB', 'DX')
+    AND NETDT IS NOT NULL
+    AND NETDT < DATE_SUB(data_base, INTERVAL atraso_minimo DAY)
+    AND H_BUDAT >= dt_inicio
+    AND (
+      NULLIF(AUGBL, '') IS NULL
+      OR AUGDT > data_base
+    )
+    AND (
+      LEFT(BELNR, 1) = '7'
+      OR LEFT(BELNR, 2) = '16'
+    )
+
+  UNION ALL
+
+  -- 3) ACORDO MANUAL ABERTOS
+  SELECT
+    data_base,
+    'ACORDO MANUAL ABERTOS' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART IN ('DN', 'DZ')
+    AND NETDT IS NOT NULL
+    AND NETDT <= DATE_SUB(data_base, INTERVAL atraso_minimo DAY)
+    AND H_BUDAT >= dt_inicio
+    AND (
+      NULLIF(AUGBL, '') IS NULL
+      OR AUGDT > data_base
+    )
+
+  UNION ALL
+
+  -- 4) MANUAL ABERTOS
+  SELECT
+    data_base,
+    'MANUAL ABERTOS' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART IN ('SA', 'SU')
+    AND NETDT IS NOT NULL
+    AND NETDT <= DATE_SUB(data_base, INTERVAL atraso_minimo DAY)
+    AND H_BUDAT >= dt_inicio
+    AND (
+      NULLIF(AUGBL, '') IS NULL
+      OR AUGDT > data_base
+    )
+
+  UNION ALL
+
+  -- 5) LIQ SISC C ABERTOS
+  SELECT
+    data_base,
+    'LIQ SISC C ABERTOS' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART = 'DC'
+    AND NETDT IS NOT NULL
+    AND NETDT < DATE_SUB(data_base, INTERVAL atraso_minimo DAY)
+    AND H_BUDAT >= dt_inicio
+    AND (
+      NULLIF(AUGBL, '') IS NULL
+      OR AUGDT > data_base
+    )
+
+  UNION ALL
+
+  -- 6) PROTHEUS ABERTOS
+  SELECT
+    data_base,
+    'PROTHEUS ABERTOS' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART = 'C2'
+    AND NETDT IS NOT NULL
+    AND NETDT <= DATE_SUB(data_base, INTERVAL atraso_minimo DAY)
+    AND H_BUDAT >= dt_inicio
+    AND (
+      NULLIF(AUGBL, '') IS NULL
+      OR AUGDT > data_base
+    )
+
+  UNION ALL
+
+  -- 7) VENDAS PAGAS
+  SELECT
+    data_base,
+    'VENDAS PAGAS' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART IN ('RV', 'DR')
+    AND H_BUDAT >= dt_inicio
+    AND NETDT IS NOT NULL
+    AND NETDT < data_base
+    AND AUGDT IS NOT NULL
+    AND DATE_DIFF(AUGDT, NETDT, DAY) > atraso_minimo
+    AND NULLIF(AUGBL, '') IS NOT NULL
+    AND LEFT(AUGBL, 1) <> '7'
+    AND LEFT(AUGBL, 2) NOT IN ('16', '18', '91')
+
+  UNION ALL
+
+  -- 8) ACORDOS PAGOS
+  SELECT
+    data_base,
+    'ACORDOS PAGOS' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART IN ('DB', 'DX')
+    AND H_BUDAT >= dt_inicio
+    AND NETDT IS NOT NULL
+    AND NETDT < data_base
+    AND AUGDT IS NOT NULL
+    AND DATE_DIFF(AUGDT, NETDT, DAY) > atraso_minimo
+    AND NULLIF(AUGBL, '') IS NOT NULL
+    AND LEFT(AUGBL, 1) <> '7'
+    AND LEFT(AUGBL, 2) NOT IN ('16', '18', '91')
+
+  UNION ALL
+
+  -- 9) ACORDO MANUAL PG
+  SELECT
+    data_base,
+    'ACORDO MANUAL PG' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART IN ('DN', 'DZ')
+    AND NETDT IS NOT NULL
+    AND NETDT <= DATE_SUB(data_base, INTERVAL atraso_minimo DAY)
+    AND H_BUDAT >= dt_inicio
+    AND NULLIF(AUGBL, '') IS NOT NULL
+    AND LEFT(AUGBL, 1) <> '7'
+    AND LEFT(AUGBL, 2) NOT IN ('16', '18', '91')
+
+  UNION ALL
+
+  -- 10) MANUAL PG
+  SELECT
+    data_base,
+    'MANUAL PG' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART IN ('SA', 'SU')
+    AND NETDT IS NOT NULL
+    AND NETDT <= DATE_SUB(data_base, INTERVAL atraso_minimo DAY)
+    AND H_BUDAT >= dt_inicio
+    AND NULLIF(AUGBL, '') IS NOT NULL
+    AND LEFT(AUGBL, 1) <> '7'
+    AND LEFT(AUGBL, 2) NOT IN ('16', '18', '91')
+
+  UNION ALL
+
+  -- 11) LIQ SISC C PG
+  SELECT
+    data_base,
+    'LIQ SISC C PG' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART = 'DC'
+    AND NETDT IS NOT NULL
+    AND NETDT <= DATE_SUB(data_base, INTERVAL atraso_minimo DAY)
+    AND H_BUDAT >= dt_inicio
+    AND NULLIF(AUGBL, '') IS NOT NULL
+    AND LEFT(AUGBL, 1) <> '7'
+    AND LEFT(AUGBL, 2) NOT IN ('16', '18', '91')
+
+  UNION ALL
+
+  -- 12) PROTHEUS PG
+  SELECT
+    data_base,
+    'PROTHEUS PG' AS FLAG,
+    KUNNR AS CLIENTE,
+    FINALIDADE_COMPRA,
+    VBELN AS DOC_VENDA,
+    BUZEI AS ITEM,
+    BELNR AS DOC_LANCAMENTO,
+    H_BLART AS TIPO_DOC_LANCAMENTO,
+    H_BUDAT_M AS MES,
+    H_BUDAT AS DATA_LANCAMENTO,
+    NETDT AS DATA_VALIDADE,
+    AUGDT AS DATA_COMPENSACAO,
+    AUGBL AS LC_COMPENSACAO,
+    TIPO_DOC_LC_COMPENSACAO,
+    SAFE_CAST(
+      IF(
+        AUGDT IS NOT NULL,
+        CAST(DATE_DIFF(DATE(AUGDT), DATE(NETDT), DAY) AS INT64),
+        NULL
+      ) AS STRING
+    ) AS DIAS_ATRASO,
+    ZLSCH AS FORMA_PAGAMENTO,
+    UF_CLIENTE,
+    CENTRO_PRIORIDADE,
+    DMBTR AS VALOR_INADIMPLENCIA
+  FROM
+    itens_base
+  WHERE
+    H_BLART = 'C2'
+    AND NETDT IS NOT NULL
+    AND NETDT <= DATE_SUB(data_base, INTERVAL atraso_minimo DAY)
+    AND H_BUDAT >= dt_inicio
+    AND NULLIF(AUGBL, '') IS NOT NULL
+    AND LEFT(AUGBL, 1) <> '7'
+    AND LEFT(AUGBL, 2) NOT IN ('16', '18', '91')
+)
+
+-- =====================================================================
+--    ------------------        RESULTADO DETALHADO        ------------------
+-- =====================================================================
+
+SELECT
+  data_base,
+  FLAG,
+  CLIENTE,
+  FINALIDADE_COMPRA,
+  DOC_VENDA,
+  ITEM,
+  DOC_LANCAMENTO,
+  TIPO_DOC_LANCAMENTO,
+  DATA_LANCAMENTO,
+  DATA_VALIDADE,
+  DATA_COMPENSACAO,
+  DIAS_ATRASO,
+  LC_COMPENSACAO,
+  TIPO_DOC_LC_COMPENSACAO,
+  FORMA_PAGAMENTO,
+  MES,
+  UF_CLIENTE,
+  CENTRO_PRIORIDADE,
+
+  CONCAT(
+    IF(COALESCE(VALOR_INADIMPLENCIA, 0) < 0, '-', ''),
+    REGEXP_REPLACE(
+      REVERSE(
+        REGEXP_REPLACE(
+          REVERSE(
+            SPLIT(
+              FORMAT('%.2f', ABS(COALESCE(VALOR_INADIMPLENCIA, 0))),
+              '.'
+            )[OFFSET(0)]
+          ),
+          r'(\d{3})',
+          r'\1.'
+        )
+      ),
+      r'^\.',
+      ''
+    ),
+    ',',
+    SPLIT(
+      FORMAT('%.2f', ABS(COALESCE(VALOR_INADIMPLENCIA, 0))),
+      '.'
+    )[OFFSET(1)]
+  ) AS VALOR_INADIMPLENCIA
+
+FROM
+  resultado_final
+WHERE
+  UF_CLIENTE IN ('PB', 'AL', 'CE', 'GO', 'MA', 'PE', 'PI', 'RJ', 'RN', 'RS', 'SC', 'SE', 'SP')
+  AND LC_COMPENSACAO = ''
+
+ORDER BY
+  data_base,
+  FLAG,
+  UF_CLIENTE,
+  FINALIDADE_COMPRA,
+  MES,
+  CLIENTE,
+  DOC_VENDA,
+  DOC_LANCAMENTO,
+  ITEM;
